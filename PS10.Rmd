@@ -1,6 +1,6 @@
 ---
 title: "STAT/MATH 495: Problem Set 10"
-author: "WRITE YOUR NAME(S) HERE"
+author: "Brendan Seto"
 date: "2017-11-28"
 output:
   html_document:
@@ -9,18 +9,13 @@ output:
     toc_depth: 2
     collapsed: false
     smooth_scroll: false
+    code_fold: hide
     df_print: kable
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=4.5, message=FALSE, warning = FALSE)
 ```
-
-
-
-# Collaboration
-
-Please indicate who you collaborated with on this assignment: 
 
 
 
@@ -53,15 +48,49 @@ predictor_matrix_train <- model.matrix(model_formula, data = train)[, -1]
 predictor_matrix_test <- model.matrix(model_formula, data = test)[, -1]
 ```
 
+I used only 150 training observations to train the model, rather than all of the training data.  But, I used Lasso to pick the best predictor, rather than whatever I used before.  
 
-# Do work and create submission files:
+# Do work:
 
 ```{r}
+get_LASSO_coefficients <- function(LASSO_fit){
+  coeff_values <- LASSO_fit %>% 
+    broom::tidy() %>% 
+    as_tibble() %>% 
+    select(-c(step, dev.ratio)) %>% 
+    tidyr::complete(lambda, nesting(term), fill = list(estimate = 0)) %>% 
+    arrange(desc(lambda)) %>% 
+    select(term, estimate, lambda)
+  return(coeff_values)
+}
 
+lambda_inputs <- 10^seq(-2, 10, length = 100)
+LASSO_fit <- glmnet(x=predictor_matrix_train, y=train$price_doc, alpha = 1, lambda = lambda_inputs)
+
+
+LASSO_coefficients <- get_LASSO_coefficients(LASSO_fit)
+
+lasso <- LASSO_coefficients %>% filter(estimate != 0, term != "(Intercept)")
+
+best <- lasso %>% mutate(best = ifelse(lambda == max(lasso$lambda),1,0)) %>% filter(best == 1)
+
+best
 ```
 
+Turns out full_sq is still my best predictor.  Was it all for nothing?
 
+```{r}
+model_spline <- with(train ,smooth.spline(x=full_sq, y=price_doc, cv=TRUE))
 
+spline_fitted <- predict(model_spline, x=test$full_sq)
+
+spline_fitted <- spline_fitted %>% 
+  as_tibble() %>% 
+  rename(hp = x, .fitted = y)
+
+submission <- data.frame(id = test$id,price_doc=spline_fitted$.fitted)
+#write_csv(submission, "try2.csv")
+```
 
 
 # Scoreboard
@@ -70,7 +99,5 @@ Using the "scoring mechanism" for the Russian Housing Kaggle competition, fill
 in these cells:
 
 
-Method                | Training Score  | Kaggle Score
---------------------- | -------------   | -------------
-lm                    |                 |  
-LASSO crossvalidated  |                 |  
+![](kaggle_score.png)
+
