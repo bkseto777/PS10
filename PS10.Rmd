@@ -98,6 +98,7 @@ submission <- data.frame(id = test$id,price_doc=spline_fitted$.fitted)
 Using the "scoring mechanism" for the Russian Housing Kaggle competition, fill
 in these cells:
 
+Our scores are not too different. 
 
 ![](kaggle_score.png)
 
